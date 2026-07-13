@@ -7,13 +7,19 @@
 
 ## Slide 1 — The problem (≈ 25 sec)
 
-> The task is binary classification: predict whether a restaurant will **close** (`status_closed = 1`) from Google-Places metadata, review dynamics, local competition and demographics. The classes are imbalanced — only about **10 %** of restaurants in the training set are closed — so the official scoring metric is **Balanced Accuracy (BA)**, which weights the two classes equally. Optimising for plain accuracy would be misleading; everything that follows is driven by BA.
+>The classes are imbalanced — only about **10 %** of restaurants in the training set are closed — so the official scoring metric is **Balanced Accuracy (BA)**, which weights the two classes equally.
 
 ---
 
-## Slide 2 — Algorithms considered (≈ 50 sec)
+## Slide 2 — Feature engineering (≈ 25 sec)
 
-> Staying strictly within the ML1 syllabus, I screened five base learners with **5-fold stratified cross-validation** on the engineered feature set:
+> Before model selection I added roughly **40** engineered features: log-transforms on heavy-tailed counts (reviews, POIs, restaurant counts), recency-share ratios (1m / 3m / 12m of total reviews), **momentum** features (e.g. `momentum_3m_to_12m`), local-**competition** ratios (`reviews_per_local_restaurant`, `restaurant_density`), and rating-strength interactions. These features consistently raised BA across every candidate, and the `catch_…` competition columns turned out to be among the most influential.
+
+---
+
+## Slide 3 — Algorithms considered (≈ 50 sec)
+
+> I screened five base learners with **5-fold stratified cross-validation** on the engineered feature set:
 >
 > 1. **L2 Logistic Regression** — strong linear baseline, calibrated probabilities, handles imbalance through `class_weight`.
 > 2. **L1 Logistic Regression** — same family, but with embedded feature selection.
@@ -25,15 +31,9 @@
 
 ---
 
-## Slide 3 — Feature engineering (≈ 25 sec)
-
-> Before model selection I added roughly **40** engineered features: log-transforms on heavy-tailed counts (reviews, POIs, restaurant counts), recency-share ratios (1m / 3m / 12m of total reviews), **momentum** features (e.g. `momentum_3m_to_12m`), local-**competition** ratios (`reviews_per_local_restaurant`, `restaurant_density`), and rating-strength interactions. These features consistently raised BA across every candidate, and the `catch_…` competition columns turned out to be among the most influential.
-
----
-
 ## Slide 4 — Selection process (≈ 55 sec)
 
-> Hyperparameters were then tuned with **OOF CV** — never on the test set — using two grids:
+> Hyperparameters were then tuned with **OOF CV** — using two grids:
 >
 > - **Logistic Regression:** swept `C ∈ {0.10, 0.20, 0.40, 1.00}` and a positive-class-weight multiplier `∈ {0.5 … 1.0}`. Best L2 config: `C = 0.40`, weight multiplier `0.60`.
 > - **Random Forest:** swept `n_estimators`, `max_features` and `min_samples_leaf`.
@@ -56,7 +56,6 @@
 
 > Honest expectations, all measured **without touching the test set**:
 >
-> - **5-fold CV BA (single models, default 0.5 threshold):** ~0.62 – 0.66.
 > - **Tuned L2 logistic, OOF with optimal threshold:** **BA ≈ 0.677**.
 > - **Elastic-net + Bagging blend, hold-out validation BA\*:** **≈ 0.68 – 0.69** at threshold ≈ 0.43.
 > - **Honest 20 % internal test BA** (single look, after full OOF tuning of weights + threshold): in the same **0.67 – 0.69** range.
@@ -67,12 +66,6 @@
 
 ## Slide 6 — Why this choice (≈ 20 sec)
 
-> The blend is the right trade-off for ML1 scope: elastic-net gives a **regularised, interpretable** linear backbone with embedded feature selection; bagged trees add **non-linear** signal on competition and recency features; the threshold tuning addresses the imbalance head-on; and every hyperparameter was selected on OOF data, so the reported BA is an honest estimate of test performance.
+> Elastic-net gives a **regularised, interpretable** linear backbone with embedded feature selection; bagged trees add **non-linear** signal on competition and recency features; the threshold tuning addresses the imbalance head-on; and every hyperparameter was selected on OOF data, so the reported BA is an honest estimate of test performance.
 
 ---
-
-### Speaker tips
-
-- Slides 2 and 4 are the densest — slow down there and let the leaderboard / blend equation breathe.
-- If you run long, drop the KNN / Decision Tree bullets on Slide 2 and the table on Slide 4.
-- Keep the closing sentence on Slide 6: it ties algorithms → selection → expected BA in one breath.
